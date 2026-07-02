@@ -1,0 +1,9 @@
+-r requirements.txt
+
+# Optional production integrations. These are lazy-loaded by the code and can be
+# installed in GPU/ML-capable images or CI runners that validate the full stack.
+FlagEmbedding==1.3.3
+datasets==2.19.0
+ragas==0.2.10
+nemoguardrails==0.11.0
+mem0ai==0.1.34

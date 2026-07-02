@@ -1,0 +1,3 @@
+{"condition":"atopic dermatitis","required_topics":["standard of care","biologics","JAK inhibitors","payers","companies"],"ground_truth_companies":["Sanofi","Regeneron","Pfizer","Eli Lilly","LEO Pharma"],"must_have_safety_notes":["Not personalized medical advice","Distinguish approved therapies from investigational assets"]}
+{"condition":"nonalcoholic steatohepatitis","required_topics":["standard of care","MASH nomenclature","thyroid hormone receptor beta agonists","fibrosis endpoints","companies"],"ground_truth_companies":["Madrigal Pharmaceuticals","Akero Therapeutics","89bio","Novo Nordisk","Eli Lilly"],"must_have_safety_notes":["Trial status must be explicit","Avoid treatment recommendations for individuals"]}
+

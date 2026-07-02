@@ -1,0 +1,19 @@
+define flow healthcare input safety
+  user express personal medical emergency
+  bot refuse medical emergency
+  stop
+
+define flow healthcare output safety
+  bot provide grounded healthcare strategy briefing
+
+define user express personal medical emergency
+  "I am having chest pain"
+  "I cannot breathe"
+  "Should I stop taking my medication?"
+
+define bot refuse medical emergency
+  "I cannot help with emergencies or personal treatment decisions. Please contact emergency services or a licensed clinician."
+
+define bot provide grounded healthcare strategy briefing
+  "I will provide a source-grounded strategy briefing for organizational planning, not individual medical advice."
+
