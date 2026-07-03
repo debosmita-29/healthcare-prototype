@@ -130,12 +130,12 @@ companies/institutions, strategic implications, and evidence caveats.
             return list(dict.fromkeys(i["evidence_id"] for i in items))
 
         # Current Standard of Care — ClinicalTrials.gov (trial) data
-        soc_bullets = [_bullet(i) for i in trial_items[:3]] or [
-            f"Confirm diagnosis, segment disease severity, and align treatment escalation for {condition}.",
-            "Verify approved therapies and guideline-backed care pathways via ClinicalTrials.gov before "
-            "incorporating pipeline assumptions.",
-            "Track payer access, monitoring burden, site-of-care requirements, and measurable outcomes.",
-        ]
+        soc_bullets = [_bullet(i) for i in trial_items[:3]]
+        if not soc_bullets:
+            soc_bullets = [
+                f"No active ClinicalTrials.gov studies were retrieved for {condition}.",
+                "Verify current trials and approved care pathways directly at clinicaltrials.gov.",
+            ]
         soc_ids = _ids(trial_items) or all_ids[:3]
 
         # Emerging Treatments — PubMed (literature) data

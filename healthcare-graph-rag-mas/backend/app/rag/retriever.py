@@ -40,7 +40,20 @@ class RagRetriever:
             trust_bonus = 0.05 if chunk["ref"] and chunk["ref"].trust_tier.value == "high" else 0.0
             chunk["score"] = float(similarity) + trust_bonus
 
-        ranked = sorted(chunks, key=lambda chunk: chunk["score"], reverse=True)[:top_k]
+        # Reserve at least one slot per source type that has evidence so every
+        # briefing section is backed by real retrieved data, not fallback text.
+        ranked_all = sorted(chunks, key=lambda c: c["score"], reverse=True)
+        guaranteed: list[dict] = []
+        seen_types: set[str] = set()
+        for chunk in ranked_all:
+            st = chunk["doc"].source_type.value
+            if st not in seen_types:
+                guaranteed.append(chunk)
+                seen_types.add(st)
+        guaranteed_ids = {id(c) for c in guaranteed}
+        remaining = [c for c in ranked_all if id(c) not in guaranteed_ids]
+        merged = guaranteed + remaining
+        ranked = merged[:top_k]
         context = [self._to_context(chunk) for chunk in ranked]
         selected_ids = list(dict.fromkeys(item["evidence_id"] for item in context))
         return selected_ids, context
