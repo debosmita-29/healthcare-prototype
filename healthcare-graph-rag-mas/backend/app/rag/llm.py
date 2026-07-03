@@ -170,18 +170,32 @@ companies/institutions, strategic implications, and evidence caveats.
             )
         co_ids = list(dict.fromkeys(_ids(company_items) + _ids(literature_items) + _ids(trial_items)))[:6]
 
+        # Strategic Implications — synthesised from highest-scoring items across all source types
+        # Use the top items by similarity score, deduplicated across sources.
+        top_items = sorted(context, key=lambda i: i.get("similarity", 0), reverse=True)
+        si_bullets: list[str] = []
+        seen_sources: set[str] = set()
+        for item in top_items:
+            st = item.get("source_type", "")
+            if st not in seen_sources:
+                si_bullets.append(_bullet(item, max_chars=200))
+                seen_sources.add(st)
+            if len(si_bullets) >= 4:
+                break
+        if not si_bullets:
+            si_bullets = [
+                f"Assess the full evidence landscape for {condition} across trials, literature, and company activity.",
+                "Prioritise sources with highest trust tier for strategic planning decisions.",
+            ]
+        si_ids = list(dict.fromkeys(
+            i["evidence_id"] for i in top_items[:6]
+        ))
+
         return [
             BriefingSection(title="Current Standard of Care", bullets=soc_bullets, evidence_ids=soc_ids),
             BriefingSection(title="Emerging Treatments", bullets=et_bullets, evidence_ids=et_ids),
             BriefingSection(title="Companies and Institutions", bullets=co_bullets, evidence_ids=co_ids or all_ids[:4]),
-            BriefingSection(
-                title="Strategic Implications",
-                bullets=[
-                    "Create a monitor for guideline updates, FDA decisions, pivotal readouts, and payer policy movement.",
-                    "Use local patient volume, referral patterns, and specialty capacity to prioritize partnership options.",
-                ],
-                evidence_ids=all_ids[:4],
-            ),
+            BriefingSection(title="Strategic Implications", bullets=si_bullets, evidence_ids=si_ids),
         ]
 
     @staticmethod
