@@ -12,6 +12,7 @@ from app.models.schemas import BriefingSection
 class OllamaClient:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
+        self.ollama_base_url = settings.effective_ollama_base_url
         self.calls = 0
         self.prompt_tokens = 0
         self.completion_tokens = 0
@@ -29,7 +30,7 @@ class OllamaClient:
         try:
             async with httpx.AsyncClient(timeout=self.settings.llm_timeout_seconds) as client:
                 response = await client.post(
-                    f"{self.settings.ollama_base_url}/api/generate",
+                    f"{self.ollama_base_url}/api/generate",
                     json={"model": self.settings.ollama_model, "prompt": prompt, "stream": False},
                 )
                 response.raise_for_status()
@@ -49,14 +50,22 @@ class OllamaClient:
 You are creating an evidence-grounded strategy briefing for a {audience}.
 Condition: {condition}
 
-Use only the supplied evidence. Distinguish approved standard of care from investigational assets.
+Use ONLY the supplied evidence below. Distinguish approved standard of care from investigational assets.
 Do not provide individualized medical advice.
 
 Evidence:
 {evidence}
 
-Return a concise structured briefing with executive summary, standard of care, emerging treatments,
-companies/institutions, strategic implications, and evidence caveats.
+Return a structured briefing with these exact sections:
+### Executive Summary
+### Current Standard of Care
+### Emerging Treatments
+### Companies and Institutions
+### Strategic Implications
+### Evidence Caveats
+
+For every bullet point append the evidence ID(s) it draws from in square brackets, e.g. [ev_abc123].
+Write complete, untruncated sentences. Do not paraphrase into fragments.
 """
 
     @staticmethod
@@ -118,13 +127,17 @@ companies/institutions, strategic implications, and evidence caveats.
         company_items = by_type.get("company", [])
         all_ids = [item["evidence_id"] for item in context]
 
-        def _bullet(item: dict, max_chars: int = 220) -> str:
+        def _bullet(item: dict, max_chars: int = 500) -> str:
             excerpt = item.get("excerpt", "").strip()
             title = item.get("title", "")
-            if excerpt:
-                clipped = excerpt[:max_chars].rsplit(" ", 1)[0] + ("…" if len(excerpt) > max_chars else "")
-                return f"{title}: {clipped}"
-            return title
+            if not excerpt:
+                return title
+            # Use full excerpt up to max_chars; prefix with title only when the
+            # excerpt doesn't already open with the same words as the title.
+            title_words = title.lower().split()[:4]
+            excerpt_opens_with_title = excerpt.lower().split()[:4] == title_words
+            clipped = excerpt[:max_chars].rsplit(" ", 1)[0] + ("\u2026" if len(excerpt) > max_chars else "")
+            return clipped if excerpt_opens_with_title else f"{title} — {clipped}"
 
         def _ids(items: list[dict]) -> list[str]:
             return list(dict.fromkeys(i["evidence_id"] for i in items))
@@ -178,7 +191,7 @@ companies/institutions, strategic implications, and evidence caveats.
         for item in top_items:
             st = item.get("source_type", "")
             if st not in seen_sources:
-                si_bullets.append(_bullet(item, max_chars=200))
+                si_bullets.append(_bullet(item, max_chars=400))
                 seen_sources.add(st)
             if len(si_bullets) >= 4:
                 break
@@ -218,6 +231,9 @@ companies/institutions, strategic implications, and evidence caveats.
             ("evidence caveat", "Evidence Caveats", all_ids[:4]),
         ]
 
+        citation_re = re.compile(r"\[ev_[a-f0-9]+\]")
+        ev_id_set = set(all_ids)  # only accept IDs that actually exist in context
+
         parts = re.split(r"\n#{1,3}\s+", text)
         results: list[BriefingSection] = []
         for part in parts[1:]:  # skip the preamble before the first header
@@ -227,12 +243,18 @@ companies/institutions, strategic implications, and evidence caveats.
             header = lines[0].strip().rstrip(":")
             header_lower = header.lower()
 
-            raw_bullets = [
-                re.sub(r"^[-*•]\s*", "", line).strip()
-                for line in lines[1:]
-                if re.match(r"^\s*[-*•]", line) or (line.strip() and not line.startswith("#"))
-            ]
-            bullets = [b for b in raw_bullets if len(b) > 10][:5]
+            # Extract cited ev_ IDs from each bullet, then strip them from display text
+            section_cited_ids: list[str] = []
+            clean_bullets: list[str] = []
+            for line in lines[1:]:
+                if not (re.match(r"^\s*[-*•]", line) or (line.strip() and not line.startswith("#"))):
+                    continue
+                raw_ids = [m[1:-1] for m in citation_re.findall(line) if m[1:-1] in ev_id_set]
+                section_cited_ids.extend(raw_ids)
+                clean = citation_re.sub("", re.sub(r"^[-*•]\s*", "", line)).strip()
+                if len(clean) > 10:
+                    clean_bullets.append(clean)
+            bullets = clean_bullets[:5]
             if not bullets:
                 continue
 
@@ -243,6 +265,9 @@ companies/institutions, strategic implications, and evidence caveats.
                     canonical_title = title
                     matched_ids = eids
                     break
+            # Precise per-bullet citations from the LLM override the type-based fallback
+            if section_cited_ids:
+                matched_ids = list(dict.fromkeys(section_cited_ids))
 
             results.append(BriefingSection(title=canonical_title, bullets=bullets, evidence_ids=matched_ids))
 

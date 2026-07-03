@@ -1,0 +1,1 @@
+FROM arizephoenix/phoenix:latest

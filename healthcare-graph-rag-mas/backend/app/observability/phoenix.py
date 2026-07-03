@@ -37,12 +37,13 @@ def node_span(name: str, attributes: dict | None = None) -> Generator[Span, None
 
 def configure_phoenix(settings: Settings) -> None:
     """Configure Phoenix tracing when the optional runtime package is available."""
-    if not settings.phoenix_collector_endpoint:
+    endpoint = settings.effective_phoenix_collector_endpoint
+    if not endpoint:
         return
     try:
         from phoenix.otel import register
 
-        traces_endpoint = f"{settings.phoenix_collector_endpoint.rstrip('/')}/v1/traces"
+        traces_endpoint = f"{endpoint.rstrip('/')}/v1/traces"
         register(project_name="healthcare-graph-rag-mas", endpoint=traces_endpoint)
 
         from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
@@ -57,4 +58,3 @@ def configure_phoenix(settings: Settings) -> None:
         LangChainInstrumentor().instrument()
     except Exception:
         pass
-

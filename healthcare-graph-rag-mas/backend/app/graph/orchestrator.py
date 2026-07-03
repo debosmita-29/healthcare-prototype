@@ -32,9 +32,13 @@ class BriefingGraphOrchestrator:
         self.external_retrieval = ExternalRetrievalService(settings)
         self.embedder = BgeM3Embedder(settings.embedding_model)
         self.rag = RagRetriever(evidence_store, self.embedder)
-        self.vector_store = PgVectorRepository(settings.database_url, self.embedder)
-        self.knowledge_graph = Neo4jKnowledgeGraph(settings.neo4j_uri, settings.neo4j_username, settings.neo4j_password)
-        self.memory = LongTermMemory(settings.mem0_enabled)
+        self.vector_store = PgVectorRepository(settings.effective_database_url, self.embedder)
+        self.knowledge_graph = Neo4jKnowledgeGraph(
+            settings.effective_neo4j_uri,
+            settings.neo4j_username,
+            settings.neo4j_password,
+        )
+        self.memory = LongTermMemory(settings)
         self.llm = OllamaClient(settings)
         self.evaluator = RagasEvaluator(settings.golden_dataset_path)
         self._compiled_graph = self._compile_graph()

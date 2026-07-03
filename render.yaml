@@ -1,0 +1,148 @@
+envVarGroups:
+  - name: healthcare-graph-rag-shared-secrets
+    envVars:
+      - key: POSTGRES_PASSWORD
+        generateValue: true
+      - key: NEO4J_PASSWORD
+        generateValue: true
+
+services:
+  - type: web
+    name: healthcare-graph-rag-api
+    runtime: docker
+    rootDir: healthcare-graph-rag-mas
+    dockerfilePath: infra/render/api.Dockerfile
+    plan: standard
+    envVars:
+      - fromGroup: healthcare-graph-rag-shared-secrets
+      - key: APP_ENV
+        value: production
+      - key: APP_NAME
+        value: Healthcare Graph RAG MAS
+      - key: POSTGRES_HOST
+        fromService:
+          type: pserv
+          name: healthcare-graph-rag-postgres
+          property: host
+      - key: POSTGRES_PORT
+        value: "5432"
+      - key: POSTGRES_USER
+        value: health
+      - key: POSTGRES_DB
+        value: healthrag
+      - key: NEO4J_HOST
+        fromService:
+          type: pserv
+          name: healthcare-graph-rag-neo4j
+          property: host
+      - key: NEO4J_PORT
+        value: "7687"
+      - key: NEO4J_USERNAME
+        value: neo4j
+      - key: OLLAMA_HOST
+        fromService:
+          type: pserv
+          name: healthcare-graph-rag-ollama
+          property: host
+      - key: OLLAMA_PORT
+        value: "11434"
+      - key: OLLAMA_MODEL
+        value: llama3.2
+      - key: PHOENIX_HOST
+        fromService:
+          type: pserv
+          name: healthcare-graph-rag-phoenix
+          property: host
+      - key: PHOENIX_PORT
+        value: "6006"
+      - key: MEM0_ENABLED
+        value: "true"
+      - key: MEM0_VECTOR_STORE_PROVIDER
+        value: qdrant
+      - key: MEM0_QDRANT_HOST
+        fromService:
+          type: pserv
+          name: healthcare-graph-rag-qdrant
+          property: host
+      - key: MEM0_QDRANT_PORT
+        value: "6333"
+      - key: NEMO_GUARDRAILS_CONFIG
+        value: /app/guardrails
+      - key: USE_LIVE_EXTERNAL_APIS
+        value: "true"
+      - key: EXTERNAL_API_TIMEOUT_SECONDS
+        value: "15"
+      - key: LLM_TIMEOUT_SECONDS
+        value: "120"
+      - key: NCBI_API_KEY
+        sync: false
+      - key: OPENFDA_API_KEY
+        sync: false
+
+  - type: pserv
+    name: healthcare-graph-rag-postgres
+    runtime: docker
+    rootDir: healthcare-graph-rag-mas
+    dockerfilePath: infra/render/postgres.Dockerfile
+    plan: standard
+    disk:
+      name: postgres-data
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 10
+    envVars:
+      - fromGroup: healthcare-graph-rag-shared-secrets
+      - key: POSTGRES_USER
+        value: health
+      - key: POSTGRES_DB
+        value: healthrag
+
+  - type: pserv
+    name: healthcare-graph-rag-neo4j
+    runtime: docker
+    rootDir: healthcare-graph-rag-mas
+    dockerfilePath: infra/render/neo4j.Dockerfile
+    plan: standard
+    disk:
+      name: neo4j-data
+      mountPath: /data
+      sizeGB: 10
+    envVars:
+      - fromGroup: healthcare-graph-rag-shared-secrets
+      - key: NEO4J_USERNAME
+        value: neo4j
+
+  - type: pserv
+    name: healthcare-graph-rag-ollama
+    runtime: docker
+    rootDir: healthcare-graph-rag-mas
+    dockerfilePath: infra/render/ollama.Dockerfile
+    plan: pro
+    disk:
+      name: ollama-models
+      mountPath: /root/.ollama
+      sizeGB: 20
+    envVars:
+      - key: OLLAMA_MODEL
+        value: llama3.2
+
+  - type: pserv
+    name: healthcare-graph-rag-phoenix
+    runtime: docker
+    rootDir: healthcare-graph-rag-mas
+    dockerfilePath: infra/render/phoenix.Dockerfile
+    plan: standard
+    disk:
+      name: phoenix-data
+      mountPath: /mnt/data
+      sizeGB: 10
+
+  - type: pserv
+    name: healthcare-graph-rag-qdrant
+    runtime: docker
+    rootDir: healthcare-graph-rag-mas
+    dockerfilePath: infra/render/qdrant.Dockerfile
+    plan: standard
+    disk:
+      name: qdrant-data
+      mountPath: /qdrant/storage
+      sizeGB: 10

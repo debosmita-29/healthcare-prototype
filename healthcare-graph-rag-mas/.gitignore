@@ -7,6 +7,8 @@ dist/
 .env
 .env.*
 !.env.example
+deploy/*.env
+!deploy/*.env.example
 *.pyc
 *.pyo
 *.log
